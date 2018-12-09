@@ -7,7 +7,7 @@ body { font-family: 'SF Hello', 'Droid Serif', 'Palatino Linotype', 'Book Antiqu
 h1 {
   font-family: 'SF Hello', 'Yanone Kaffeesatz';
   font-weight: bold;
-  font-size: 150%;
+  font-size: 100%;
 }
 
 h2, h3 {
@@ -16,7 +16,7 @@ h2, h3 {
 }
 
 .pull-left, .pull-right {
-  font-size: 200%;
+  font-size: 100%;
 }
 
 li {
@@ -27,7 +27,7 @@ li {
   font-size: 16pt;
 }
 
-.remark-code, .remark-inline-code { font-family: 'SF Mono', 'Source Code Pro', 'Lucida Console', Monaco, monospace; font-size: 125%;}
+.remark-code, .remark-inline-code { font-family: 'SF Mono', 'Source Code Pro', 'Lucida Console', Monaco, monospace; font-size: 100%;}
 
 div.my-header {
   position: absolute;

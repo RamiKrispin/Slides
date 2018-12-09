@@ -20,6 +20,10 @@ options(htmltools.dir.version = FALSE)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=10, fig.height=5, fig.path='Figs/')
+```
+
 class: inverse
 
 # Agenda
@@ -102,8 +106,27 @@ ts_info(USgas)
 ```
 
 
+---
+class: inverse
 
+# Visualize time series data
 
+```{r}
+ts_plot(USgas)
+```
+
+---
+class: inverse
+
+# Visualize time series data
+
+```{r}
+ts_plot(USgas,
+        title = "Monthly Natural Gas Consumption in the US",
+        slider = TRUE,
+        Ytitle = "Billion Cubic Feet"
+        )
+```
 ---
 
 You are recommended to use the [RStudio IDE](https://www.rstudio.com/products/rstudio/), but you do not have to.
