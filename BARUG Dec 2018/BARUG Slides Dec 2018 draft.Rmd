@@ -42,22 +42,69 @@ class: inverse
 
 # Introduction
 
-The TSstudio package provides a set of functions for time series analysis and forecasting
-
-- Utility functions for preprocessing time series data
-- Interactive data visualization tools for descriptive analysis, based on the plotly package engine
-- Set of functions for predictive analysis and forecasting automation with the use of models from the forecast, forecastHybrid, and bsts packages
-
----
-# Hello World
-
-Install the **xaringan** package from [Github](https://github.com/yihui/xaringan):
-
-```{r eval=FALSE, tidy=FALSE}
-devtools::install_github("yihui/xaringan")
-```
+The **TSstudio** package provides a set of functions for time series analysis and forecasting such as:
 
 --
+
+- Utility functions for preprocessing time series data
+
+--
+
+- Interactive data visualization tools for descriptive analysis, based on the **plotly** package engine
+
+--
+
+- Set of functions for predictive analysis and forecasting automation with the use of models from the **forecast**, **forecastHybrid**, and **bsts** packages
+
+--
+
+The primary goal of the package is to simplify the analysis workflow (or, minimum code - maximum results) 
+
+
+---
+class: inverse
+
+# Introduction
+
+The **TSstudio** package provides a set of functions for time series analysis and forecasting such as:
+
+- 
+
+
+---
+class: inverse
+
+# Installation
+
+Install from [CRAN](https://cran.r-project.org/web/packages/TSstudio/index.html):
+
+```{r eval=FALSE, tidy=FALSE}
+install.packages("TSstudio")
+```
+
+Or from [Github](https://github.com/RamiKrispin/TSstudio):
+
+```{r eval=FALSE, tidy=FALSE}
+devtools::install_github("RamiKrispin/TSstudio")
+```
+
+---
+class: inverse
+
+# Visualize time series data
+
+```{r}
+library(TSstudio)
+
+data(USgas)
+
+ts_info(USgas)
+```
+
+
+
+
+---
 
 You are recommended to use the [RStudio IDE](https://www.rstudio.com/products/rstudio/), but you do not have to.
 
