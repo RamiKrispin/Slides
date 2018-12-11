@@ -1,0 +1,360 @@
+---
+title: "Time Series Analysis and Forecasting with the TSstudio Package"
+subtitle: "Bay Area R Users Group Meetup"
+author: "Rami Krispin (@Rami_Krispin)"
+date: "2018-12-11"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+setwd("/Users/rami/packages/Slides/BARUG Dec 2018/")
+load("backtesting.RData")
+
+ts_sim <- function(model, h, n){
+  s <- NULL
+  s <- lapply(1:n, function(i){
+    sim <- NULL
+    sim <- stats::simulate(model,nsim = h)
+    sim_df <- base::data.frame(x = stats::time(sim), y = base::as.numeric(sim))
+    return(sim_df)
+  }) 
+  
+  p <- plotly::plot_ly()
+  
+  for(i in 1:n){
+    p <- p %>% plotly::add_lines(x = s[[i]]$x, y = s[[i]]$y, line = list(color = "blue"), opacity = 0.05)
+  }
+  s1 <- s %>% dplyr::bind_rows() %>% dplyr::group_by(x) %>%
+    dplyr::summarise(p50 = median(y))
+  p <- p %>% plotly::add_lines(x = s1$x, y = s1$p50, 
+                               
+                               line = list(color = "black", 
+                                           dash = "dash", 
+                                           width = 3)) 
+  
+  p <- p %>% plotly::add_lines(x = time(model$x), y = model$x, line = list(color = "#00526d")) %>% plotly::hide_legend()
+  
+  return(p)
+}
+```
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=8, fig.height=4)
+set.seed(1234)
+```
+
+
+class: inverse
+
+## Agenda
+
+- Introduction
+
+- Utility functions
+
+- Visualization tools
+
+- Seasonal analysis
+
+- Forecasting applications
+
+- Road map
+
+
+## Any experince with time series analysis?
+
+forecast package?
+
+plotly package?
+
+## Introduction
+
+The **TSstudio** package provides a set of functions for time series analysis and forecasting such as:
+
+- Utility functions for pre-processing time series data
+- Interactive data visualization tools for descriptive analysis, based on the **plotly** package engine
+- Set of functions for predictive analysis and forecasting automation with the use of models from the **forecast**, **forecastHybrid**, and **bsts** packages
+
+The primary goal of the package is to simplify the analysis workflow (or, minimum code - maximum results) 
+
+
+
+## Package structure
+
+![](TSstudio Structure.png)
+
+## Installation
+
+Install from [CRAN](https://cran.r-project.org/web/packages/TSstudio/index.html):
+
+```{r eval=FALSE, tidy=FALSE}
+install.packages("TSstudio")
+```
+
+Or from [Github](https://github.com/RamiKrispin/TSstudio):
+
+```{r eval=FALSE, tidy=FALSE}
+devtools::install_github("RamiKrispin/TSstudio")
+```
+
+```{r}
+library(TSstudio)
+```
+
+## Utility functions
+
+The `ts_info` returns the main characteristics of the series:
+
+```{r}
+data("USVSales")
+ts_info(USgas)
+
+data("Michigan_CS")
+ts_info(Michigan_CS)
+```
+
+
+## Utility functions
+
+The `ts_to_prophet` convert time series object (e.g., `ts`, `xts`, `zoo`) to `prophet` input structure:
+
+```{r}
+USgas_prophet <- ts_to_prophet(USgas)
+
+head(USgas_prophet)
+```
+
+## Utility functions
+
+The `ts_split` splits a time series object to a training and testing partitions:
+
+```{r}
+USgas_split <- ts_split(USgas, sample.out = 12)
+
+train <- USgas_split$train
+test <- USgas_split$test
+
+
+```
+
+
+## Utility functions
+
+The `ts_split` splits a time series object to a training and testing partitions:
+
+```{r}
+ts_info(train)
+ts_info(test)
+```
+
+## Utility functions
+
+Another useful utility functions:
+
+- `xts_to_ts()` for converting `xts` object to `ts` object
+- `zoo_to_ts()` for converting `zoo` object to `ts` object
+- `ts_sum()` - summation of multiple time series objects
+- `ts_reshape()` - transform time series object to a data frame format
+
+## Visualization tools
+
+The `ts_plot` function plot time series objects, supporting multiple formats (i.e., `ts`, `xts`, `zoo`, `data.frame`, `tbl`):
+
+```{r}
+ts_plot(USgas)
+```
+
+
+## Visualization tools
+
+It is fairly simple to customize the plot:
+
+```{r}
+ts_plot(USgas, Ytitle = "Billion Cubic Feet", 
+        title = "Monthly Natural Gas Consumption in the US",
+        slider = TRUE, color = "green") 
+
+```
+
+## Visualization tools
+
+All the visualization outputs are `plotly` objects:
+
+```{r}
+p <- ts_plot(USgas, Ytitle = "Billion Cubic Feet", 
+        title = "Monthly Natural Gas Consumption in the US")
+class(p)
+```
+
+
+## Visualization tools
+
+Therefore, you can apply any of the plotly functions, and customize the object accordingly:
+
+```{r}
+library(plotly)
+p %>% layout(font = list(color = "white"),
+       plot_bgcolor = "black", paper_bgcolor = "black")
+```
+
+## Seasonal analysis
+
+The package provides a set of functions for seasonal analysis, such as:
+
+- `ts_seasonal()` - provides a view of the series by its frequency units, applicable for a series with daily frequency and above (e.g., monthly, quarterly)
+- `ts_heatmap()` - heatmap for time series data supports time series with half hour frequency and above
+- `ts_surface` - A 3D view of the series, by the frequency units (e.g., the month of the year), the cycle units (e.g. the year), and the series values
+- `ts_polar` - polar plot of time series data, applicable for monthly or quarterly series
+- `ts_quantile` - quantile plots of time series data
+
+## Seasonal analysis
+
+```{r}
+ts_seasonal(USgas, type = "all",
+            palette_normal = "inferno")
+```
+
+## Seasonal analysis
+
+```{r}
+ts_heatmap(USgas, color = "Greens")
+```
+
+## Seasonal analysis
+
+```{r fig.height=5, fig.width=8}
+ts_surface(USgas)
+```
+
+## Analyzing series with high frequency
+
+```{r}
+library(UKgrid)
+
+UKgrid_hourly <- extract_grid(type = "xts", 
+                             columns = "ND", 
+                             aggregate = "hourly", 
+                             start = 2015)
+
+ts_info(UKgrid_hourly)
+```
+
+## Analyzing series with high frequency
+
+```{r}
+ts_plot(UKgrid_hourly)
+```
+
+
+## Analyzing series with high frequency
+
+```{r}
+ts_quantile(UKgrid_hourly)
+```
+
+## Analyzing series with high frequency
+
+```{r}
+ts_quantile(UKgrid_hourly, period = "weekdays", n = 2)
+```
+
+## Analyzing series with high frequency
+
+```{r}
+ts_quantile(UKgrid_hourly, period = "monthly", n = 2)
+```
+
+## Forecasting applications
+
+```{r}
+library(forecast)
+
+USgas_split <- ts_split(USgas, sample.out = 12)
+train <- USgas_split$train
+test <- USgas_split$test
+
+md <- auto.arima(train, stepwise = FALSE, approximation = FALSE)
+fc <- forecast(md, h = 12)
+
+accuracy(fc, test)
+```
+
+## Forecasting applications
+
+```{r}
+test_forecast(actual = USgas, test = test, forecast.obj = fc)
+```
+
+## Forecasting applications
+
+```{r}
+md1 <- auto.arima(USgas, stepwise = FALSE, approximation = FALSE)
+fc1 <- forecast(md1, h = 60)
+plot_forecast(fc1)
+```
+
+
+## Forecasting applications
+
+```{r echo = TRUE}
+# md2 <- ts_backtesting(ts.obj = USgas,
+#                       h = 60,
+#                       window_size = 12,
+#                       periods = 6)
+
+md2$leaderboard
+
+```
+## Forecasting applications
+
+```{r}
+md2$summary_plot
+```
+
+## Forecasting applications
+
+```{r echo = TRUE}
+# md3 <- ts_backtesting(ts.obj = USgas,
+#                       periods = 6, 
+#                       error = "RMSE",
+#                       window_size = h1,
+#                       h = h2,
+#                       a.arg = list(stepwise = FALSE, 
+#                                    approximation = FALSE,
+#                                    D = 1),
+#                       e.arg = list(opt.crit = "mse"),
+#                       n.arg = list(P = 2, 
+#                                    p =1,
+#                                    repeats = 100),
+#                       h.arg = list(errorMethod = "RMSE",
+#                                    verbos = FALSE))
+```
+
+## Forecasting applications
+
+```{r}
+md3$leaderboard
+```
+
+
+## Forecasting applications
+
+```{r}
+md3$summary_plot
+```
+
+
+## Forecasting applications
+
+```{r}
+check_res(md3$Models_Final$auto.arima)
+```
+
+## Road map
+
+```{r}
+ts_sim(model = md3$Models_Final$auto.arima, h = 60, n = 100)
+```
+
