@@ -1,0 +1,208 @@
+---
+title: "R Notebook"
+author: "Rami Krispin (@Rami_Krispin)"
+date: "`r Sys.Date()`"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+setwd("/Users/rami/packages/Slides/BARUG Dec 2018/")
+```
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=10, fig.height=5)
+set.seed(1234)
+```
+The **TSstudio** provides a set of tools for time series analysis and forecasting application. The following document demonstrates the usage of the package to forecast the monthly consumption of natural gas in the US in the next 5 years (or 60 months)
+
+### Installation
+
+Install from [CRAN](https://cran.r-project.org/web/packages/TSstudio/index.html):
+
+```{r eval = FALSE, tidy = FALSE}
+install.packages("TSstudio")
+```
+
+Or from [Github](https://github.com/RamiKrispin/TSstudio):
+
+```{r eval=FALSE, tidy=FALSE}
+devtools::install_github("RamiKrispin/TSstudio")
+```
+
+As for December 2018, the most updated version is 0.1.3:
+
+```{r}
+library(TSstudio)
+packageVersion("TSstudio")
+```
+
+
+### Data
+
+The `USgas` dataset, one of the package datasets, represents the monthly consumption (in Billion Cubic Feet) of natural gas in the US since January 2000 [1]:
+
+```{r fig.height=5, fig.width=10}
+# Load the series
+data("USgas")
+
+# Get the series info
+ts_info(USgas)
+
+# Plot the series
+ts_plot(USgas,
+        title = "US Monthly Natural Gas Consumption",
+        Ytitle = "Billion Cubic Feet",
+        Xtitle = "Source: Federal Reserve Bank of St. Louis", 
+        slider = TRUE)
+```
+
+
+### Seasonal analysis
+
+You can note from the plot above that the series has strong seasonality and fairly stable trend (or growth). We will use the `ts_seasonal` and the `ts_heatmap` the explore further the seasonality and trend of the series:
+
+```{r}
+ts_seasonal(USgas, type = "all")
+```
+
+The `ts_seasonal` function provides three different views of the seasonality of the series (when the `type` argument is equal to `"all"`):
+
+- The upper plot splits and alinged the series by the cycle units of the series, which in this case the cycle length of the series is one year and the cycle units are the months of the year (or the series frequency). You can not from that plot that:
+    + The consumption has high depandency to the month of the year (e.g., high consumption during the winter and low throughout the summer)
+    + The color scale of the plot, which gradualy change from red for early years to blue for most recent years. Indicates that there is a gradual growth in the consumption from year to year
+- The middle plot represents the change from year to year of each frequency units. Here we can notice that, in most of the years, the order of the consumption magnitute remains the same (e.g., in most of the years January has the highest consumption and May and September the lowest)
+- The last plot, provides a good overview of the consumption variation by frequency units (or month of the year). You can notice that the variation of the consumption during the summer time is lower (or less seneative), as opposed to the ones throughout the winter months
+
+The combination of the three plots provides the full picture on the series seaosnality. Alternativliy, you can use the `ts_heatmap` to get a time series heatmap represenative of the series:
+
+```{r}
+ts_heatmap(USgas)
+```
+
+### Correlation analysis
+
+The next step is to identify the level of correlation between the series and it's lags, using the `ts_acf` function, which is nothing but an interactive version of the `acf` function:
+```{r}
+ts_acf(USgas, lag.max = 36)
+```
+
+As expected you can notice that the series is highely correlated with it's seasonal lags. A more intuative way to review identify a deoandency between the series and its lags is with the `ts_lags` function, which provides plots of the series against its lags:
+
+```{r}
+ts_lags(USgas)
+```
+
+As observed before with the `ts_acf` function, you can notice that the seasonal lag (or lag 12) of the series has a strong linear relationship with the series. In a semilar way we can zoom in on the seasonal lags of the series using the `lags` argument:
+
+```{r}
+ts_lags(USgas, lags = c(12, 24, 36, 48))
+```
+
+### Forecasting the series
+
+Using the information we learned from the seasonal and correlation analysis, we will conduct "horse race" between several models and select the one that performe best on the testing set, by using two training approaches:
+
+
+* Traditional approach - by splitting the series into training and testing (sample out) partitions. Train each model on the training set and evluate its perfromance on the testing set. We will use the following four models - `auto.arima`, `ets`, `nnetar` and `tslm` from the **forecast** package
+
+* Backtesting - by using expending window to train and test each model on multiple training and testing sets. We will utilize the `ts_backtesting` function to train multiple models from the **forecast**, **forecastHybrid**, and **bsts** packages.
+
+#### Traditional Approach
+
+```{r}
+# Set the sample out and forecast horizon
+h1 <- 12 # sample out lenght
+h2 <- 60 # forecast horizon
+
+USgas_split <- ts_split(USgas, sample.out = h1)
+train <- USgas_split$train
+test <- USgas_split$test
+
+ts_info(train)
+ts_info(test)
+```
+
+
+```{r}
+set.seed(1234)
+
+library(forecast)
+
+# auto.arima
+md1 <- auto.arima(train, 
+                  stepwise = FALSE, 
+                  approximation = FALSE,
+                  D = 1)
+fc1 <- forecast(md1, h = h1)
+accuracy(fc1, test)
+# ETS
+md2 <- ets(train, opt.crit = "mse")
+fc2 <- forecast(md2, h = h1)
+accuracy(fc2, test)
+
+# Neural network time series forecasts
+md3 <- nnetar(train, 
+              P = 2, # using 2 seasonal lags
+              p = 1, # and 1 non-seasonal lags
+              repeats = 100)
+fc3 <- forecast(md3, h = h1)
+accuracy(fc3, test)
+
+# Time series linear regression
+md4 <- tslm(train ~ season + trend)
+fc4 <- forecast(md4, h = h1)
+accuracy(fc4, test)
+```
+
+We will utlize the `test_forecast` function to visualize the goodness of fit of each model on both the training and testing partitions:
+
+```{r}
+test_forecast(forecast.obj = fc1, actual = USgas, test = test)
+test_forecast(forecast.obj = fc2, actual = USgas, test = test)
+test_forecast(forecast.obj = fc3, actual = USgas, test = test)
+test_forecast(forecast.obj = fc4, actual = USgas, test = test)
+```
+
+Looking at the results above, we can see that `ets` model achived the lowest error rate on testing set (both `RMSE` and `MAPE`) and therefore we will use this model to forecast the monthly consumption in the next 5 years. We will first retrain the model on all the series and review the residuals:
+
+```{r}
+md2a <- ets(USgas, opt.crit = "mse")
+fc2a <- forecast(md2a, h = h2)
+
+plot_forecast(fc2a)
+```
+
+
+#### Forecasting with backtesting
+
+We will use the `ts_backtesting` to train and test multiple models (`auto.arima`, `ets`, `HoltWinters`, `nnetar`, `tbats`, from the **forecast** package, `hybridModel` from the **forecastHybrid** package and `bsts` from the **bsts** package) over six periods of time (`periods = 6`). Likewise as we did in the traditional approach above, we will set the testing partition to 12 months (`h = h1`) and the forecast horizon to 60 months (`h = h2`)
+
+```{r}
+md5 <- ts_backtesting(ts.obj = USgas,
+                      periods = 6, 
+                      error = "RMSE",
+                      window_size = h1,
+                      h = h2,
+                      a.arg = list(stepwise = FALSE, 
+                                   approximation = FALSE,
+                                   D = 1),
+                      e.arg = list(opt.crit = "mse"),
+                      n.arg = list(P = 2, 
+                                   p =1,
+                                   repeats = 100),
+                      h.arg = list(errorMethod = "RMSE",
+                                   verbos = FALSE))
+
+
+md5$summary_plot
+```
+
+The main advantage the backtesting approach, over the traditional approach, is that it provides an overview of the performance of each model overtime. This allow you to identify, in additional to accuracy, the stability of the model's performance overtime. Looking at the summary plot above, you can notice that:
+
+* The `nnetar` model is the most stable model, as the range of its RMSE is fairly small.
+* Yet, on average, the `auto.arima` model achived the lowest RMSE and MAPE on the testing partitions (since we defined the model selection critirion as RMSE, the function select this forecasting approach)
+* You may also consider the `bsts` or the `ets` models, as their error consitenly dropping overtime
+
+[1] U.S. Bureau of Transportation Statistics, Natural Gas Consumption [NATURALGAS], retrieved from FRED, Federal Reserve Bank of St. Louis; https://fred.stlouisfed.org/series/NATURALGAS, January 7, 2018.
