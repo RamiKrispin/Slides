@@ -50,7 +50,7 @@ ts_sim <- function(model, h, n){
 ```
 
 ```{r global_options, include=FALSE}
-knitr::opts_chunk$set(fig.width=10, fig.height=4)
+knitr::opts_chunk$set(fig.width=12, fig.height=5)
 set.seed(1234)
 ```
 
@@ -67,6 +67,8 @@ class: inverse
 
 - Seasonal analysis
 
+- Correlation analysis
+
 - Forecasting applications
 
 - Road map
@@ -75,7 +77,9 @@ class: inverse
 
 class: inverse, center, middle
 
-# Any experince with time series analysis? forecast and plotly packages?
+## Any experince with time series analysis? 
+
+##forecast and plotly packages?
 
 ---
 class: inverse
@@ -121,7 +125,7 @@ devtools::install_github("RamiKrispin/TSstudio")
 ---
 class: inverse
 
-# Utility functions
+# Utility functions - object info
 
 The `ts_info` returns the main characteristics of the series:
 
@@ -137,7 +141,7 @@ ts_info(Michigan_CS)
 ---
 class: inverse
 
-# Utility functions
+# Utility functions - creating partitions
 
 The `ts_split` splits a time series object to a training and testing partitions:
 
@@ -152,7 +156,8 @@ test <- USgas_split$test
 
 ---
 class: inverse
-# Utility functions
+
+# Utility functions - creating partitions 
 
 The `ts_split` splits a time series object to a training and testing partitions:
 
@@ -165,7 +170,7 @@ ts_info(test)
 ---
 class: inverse
 
-# Utility functions
+# Utility functions - prophet object
 
 The `ts_to_prophet` convert time series object (e.g., `ts`, `xts`, `zoo`) to `prophet` input structure:
 
@@ -178,7 +183,7 @@ head(USgas_prophet)
 ---
 class: inverse
 
-# Utility functions
+# Utility functions - more
 
 Another useful utility functions:
 
@@ -190,7 +195,7 @@ Another useful utility functions:
 ---
 class: inverse
 
-# Visualization tools
+# Visualization tools - plotting ts object
 
 The `ts_plot` function plot time series objects, supporting multiple formats (i.e., `ts`, `xts`, `zoo`, `data.frame`, `tbl`):
 
@@ -201,7 +206,7 @@ ts_plot(USgas)
 ---
 class: inverse
 
-# Visualization tools
+# Visualization tools - plotting ts object
 
 It is fairly simple to customize the plot:
 
@@ -215,7 +220,7 @@ ts_plot(USgas, Ytitle = "Billion Cubic Feet",
 ---
 class: inverse
 
-# Visualization tools
+# Visualization tools - add plotly layer
 
 All the visualization outputs are `plotly` objects:
 
@@ -228,14 +233,14 @@ class(p)
 ---
 class: inverse
 
-# Visualization tools
+# Visualization tools - add plotly layer
 
 Therefore, you can apply any of the plotly functions, and customize the object accordingly:
 
 ```{r}
 library(plotly)
-p %>% layout(font = list(color = "white"),
-       plot_bgcolor = "black", paper_bgcolor = "black")
+p %>% layout(font = list(color = "black"),
+       plot_bgcolor = "white", paper_bgcolor = "#f2f2f2")
 ```
 
 ---
@@ -254,7 +259,7 @@ The package provides a set of functions for seasonal analysis, such as:
 ---
 class: inverse
 
-# Seasonal analysis
+# Seasonal analysis - seasonal plots
 
 ```{r}
 ts_seasonal(USgas, type = "all",
@@ -262,9 +267,9 @@ ts_seasonal(USgas, type = "all",
 ```
 
 ---
-class: inverse
+class: inverse 
 
-# Seasonal analysis
+# Seasonal analysis - heatmap
 
 ```{r}
 ts_heatmap(USgas, color = "Greens")
@@ -273,68 +278,46 @@ ts_heatmap(USgas, color = "Greens")
 ---
 class: inverse
 
-# Seasonal analysis
+# Seasonal analysis - 3D view
 
-```{r fig.height=5, fig.width=8}
+```{r}
 ts_surface(USgas)
 ```
 
 ---
 class: inverse
 
-# Analyzing series with high frequency
+# Correlation analysis - ACF plot
 
 ```{r}
-library(UKgrid)
-
-UKgrid_hourly <- extract_grid(type = "xts", 
-                             columns = "ND", 
-                             aggregate = "hourly", 
-                             start = 2015)
-
-ts_info(UKgrid_hourly)
+ts_acf(USgas)
 ```
 
 ---
 class: inverse
 
-# Analyzing series with high frequency
+# Correlation analysis - lags plot
 
 ```{r}
-ts_plot(UKgrid_hourly)
+ts_lags(USgas)
 ```
 
 ---
 class: inverse
 
-# Analyzing series with high frequency
+# Correlation analysis - lags plot
 
 ```{r}
-ts_quantile(UKgrid_hourly)
+ts_lags(USgas, lags = c(12, 24, 36, 48))
 ```
 
 ---
+
+
+
 class: inverse
 
-# Analyzing series with high frequency
-
-```{r}
-ts_quantile(UKgrid_hourly, period = "weekdays", n = 2)
-```
-
----
-class: inverse
-
-# Analyzing series with high frequency
-
-```{r}
-ts_quantile(UKgrid_hourly, period = "monthly", n = 2)
-```
-
----
-class: inverse
-
-# Forecasting applications
+# Forecasting applications - error evaluation
 
 ```{r}
 library(forecast)
@@ -352,7 +335,7 @@ accuracy(fc, test)
 ---
 class: inverse
 
-# Forecasting applications
+# Forecasting applications - error evaluation
 
 ```{r}
 test_forecast(actual = USgas, test = test, forecast.obj = fc)
@@ -361,7 +344,7 @@ test_forecast(actual = USgas, test = test, forecast.obj = fc)
 ---
 class: inverse
 
-# Forecasting applications
+# Forecasting applications - forecast plot
 
 ```{r}
 md1 <- auto.arima(USgas, stepwise = FALSE, approximation = FALSE)
@@ -369,26 +352,36 @@ fc1 <- forecast(md1, h = 60)
 plot_forecast(fc1)
 ```
 
+---
+class: inverse
+
+# Forecasting applications - backtesting
+```{r, out.width = "500px", echo=FALSE}
+knitr::include_graphics("backtesting.png")
+```
+
+
+[Source - Uber Engineering Blog](https://eng.uber.com/omphalos/)
 
 ---
 class: inverse
 
-# Forecasting applications
+# Forecasting applications - backtesting
 
-```{r echo = TRUE}
-# md2 <- ts_backtesting(ts.obj = USgas,
-#                       h = 60,
-#                       window_size = 12,
-#                       periods = 6)
-
+```{r eval=FALSE, tidy=FALSE}
+md2 <- ts_backtesting(ts.obj = USgas,
+                      h = 60,
+                      window_size = 12,
+                      periods = 6)
+```
+```{r}
 md2$leaderboard
-
 ```
 
 ---
 class: inverse
 
-# Forecasting applications
+# Forecasting applications - backtesting
 
 ```{r}
 md2$summary_plot
@@ -397,29 +390,29 @@ md2$summary_plot
 ---
 class: inverse
 
-# Forecasting applications
+# Forecasting applications - backtesting
 
-```{r echo = TRUE}
-# md3 <- ts_backtesting(ts.obj = USgas,
-#                       periods = 6, 
-#                       error = "RMSE",
-#                       window_size = h1,
-#                       h = h2,
-#                       a.arg = list(stepwise = FALSE, 
-#                                    approximation = FALSE,
-#                                    D = 1),
-#                       e.arg = list(opt.crit = "mse"),
-#                       n.arg = list(P = 2, 
-#                                    p =1,
-#                                    repeats = 100),
-#                       h.arg = list(errorMethod = "RMSE",
-#                                    verbos = FALSE))
+```{r eval=FALSE, tidy=FALSE}
+md3 <- ts_backtesting(ts.obj = USgas,
+                      periods = 6,
+                      error = "RMSE",
+                      window_size = h1,
+                      h = h2,
+                      a.arg = list(stepwise = FALSE,
+                                   approximation = FALSE,
+                                   D = 1),
+                      e.arg = list(opt.crit = "mse"),
+                      n.arg = list(P = 2,
+                                   p =1,
+                                   repeats = 100),
+                      h.arg = list(errorMethod = "RMSE",
+                                   verbos = FALSE))
 ```
 
 ---
 class: inverse
 
-# Forecasting applications
+# Forecasting applications - backtesting
 
 ```{r}
 md3$leaderboard
@@ -429,17 +422,26 @@ md3$leaderboard
 ---
 class: inverse
 
-# Forecasting applications
+# Forecasting applications - backtesting
 
 ```{r}
 md3$summary_plot
 ```
 
+---
+class: inverse
+
+# Forecasting applications - backtesting
+
+```{r}
+md2$leaderboard
+md3$leaderboard
+```
 
 ---
 class: inverse
 
-# Forecasting applications
+# Forecasting applications - backtesting
 
 ```{r}
 check_res(md3$Models_Final$auto.arima)
@@ -450,12 +452,43 @@ class: inverse
 
 # Road map
 
+- Improve both the functionality and efficiency of the ts_backtesting function:
+    - Add more models (e.g., `prophet`, `tslm`, `stl`, etc.)
+    - Parallel the function
+    - Utilize **purrr** functions
+
+- Expand the descriptive function to more granular or high-frequency data
+
+
+---
+class: inverse
+
+# Road map
+
+Work on progress...
+
 ```{r}
 ts_sim(model = md3$Models_Final$auto.arima, h = 60, n = 100)
 ```
 
+---
+class: inverse
+
+# Aditional information
+
+- Package [github page](https://github.com/RamiKrispin/TSstudio)
+- Release notes on my [blog](https://ramikrispin.github.io/)
+- Great post about backtesting from [Uber Engineering Blog](https://eng.uber.com/omphalos/)
+- The [forecast](https://github.com/robjhyndman/forecast) and [plotly](https://plot.ly/r/) packages
 
 
 
+---
+class: inverse, center, middle
 
+# Questions?
 
+---
+class: inverse, center, middle
+
+# Thanks!

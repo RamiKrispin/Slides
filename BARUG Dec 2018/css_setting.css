@@ -7,7 +7,7 @@ body { font-family: 'SF Hello', 'Droid Serif', 'Palatino Linotype', 'Book Antiqu
 h1 {
   font-family: 'SF Hello', 'Yanone Kaffeesatz';
   font-weight: bold;
-  font-size: 100%;
+  font-size: 90%;
 }
 
 h2, h3 {
@@ -19,7 +19,7 @@ h2, h3 {
   font-size: 100%;
 }
 
-li {
+li, p {
   font-size: 22pt;
 }
 
