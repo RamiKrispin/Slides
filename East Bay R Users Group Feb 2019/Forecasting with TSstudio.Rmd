@@ -164,7 +164,7 @@ fc3 <- forecast(md3, h = h1)
 accuracy(fc3, test)
 
 # Time series linear regression
-md4 <- tslm(train ~ season + trend)
+md4 <- tslm(train ~ season + trend + I(trend ^ 2))
 fc4 <- forecast(md4, h = h1)
 accuracy(fc4, test)
 ```
