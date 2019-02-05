@@ -17,7 +17,7 @@ setwd("/Users/rami/packages/Slides/East Bay R Users Group Feb 2019/")
 ```
 
 ## Intro
-The **TSstudio** provides a set of tools for time series analysis and forecasting application. The following document demonstrates the usage of the package to forecast the monthly consumption of natural gas in the US in the next 5 years (or 60 months)
+The **TSstudio** provides a set of tools for time series analysis and forecasting applications, using (mainly) the **forecast** package models and the **plotly** package data visualization engine. The following document demonstrates the usage of the package to forecast the monthly consumption of natural gas in the US in the next 5 years (or 60 months)
 
 ## Installation
 
@@ -60,32 +60,54 @@ ts_plot(USgas,
 
 ## Exploratory analysis
 
-a
+The goal of the exploratory analysis is to identify the key characteristics of the series with the use of descriptive analysis methods. Throughout this process we are mainly want to detect:
+
+* Seasonal pattern - single/multiple seasonal pattern (if exists)
+* The trend type - linear/exponential
+* Structural breaks and outliers
+* Any other pattern of the series
+
+Those insights provide us with a better understanding of the past and can be utilized to forecast the future. 
 
 ### Decomposing the series
 
+We will start with decomposing the series into its three components - the trend, seasonal and random components. The `ts_decompose` function provides an interactive inference for the `decompose` function form the **stats** package:
 
 ```{r}
 ts_decompose(USgas)
 ```
 
+We can observe that the trend of the series is fairly flat up to 2010 and afterward start to increase. Also, it seems from the trend plot that it is not linear. 
+
 ### Seasonal analysis
 
-You can note from the plot above that the series has strong seasonality and fairly stable trend (or growth). We will use the `ts_seasonal` and the `ts_heatmap` the explore further the seasonality and trend of the series:
+You can note from both the series and decompose plots that the series has a strong seasonal pattern along with a non-linear trend. We will use the `ts_seasonal`, `ts_heatmap` and `ts_surface` functions to explore the seasonal pattern of the series:
 
 ```{r}
 ts_seasonal(USgas, type = "all")
 ```
 
-The `ts_seasonal` function provides three different views of the seasonality of the series (when the `type` argument is equal to `"all"`):
+The `ts_seasonal` function provides three different views of the seasonality of the series (when the type argument is equal to  `all`):
 
-- The upper plot splits and alinged the series by the cycle units of the series, which in this case the cycle length of the series is one year and the cycle units are the months of the year (or the series frequency). You can not from that plot that:
-    + The consumption has high depandency to the month of the year (e.g., high consumption during the winter and low throughout the summer)
-    + The color scale of the plot, which gradualy change from red for early years to blue for most recent years. Indicates that there is a gradual growth in the consumption from year to year
-- The middle plot represents the change from year to year of each frequency units. Here we can notice that, in most of the years, the order of the consumption magnitute remains the same (e.g., in most of the years January has the highest consumption and May and September the lowest)
-- The last plot, provides a good overview of the consumption variation by frequency units (or month of the year). You can notice that the variation of the consumption during the summer time is lower (or less seneative), as opposed to the ones throughout the winter months
+* Split and plot the series by the full frequency cycle of the series, which in the case of monthly series is a full year. This view allows you to observe and compare the variation of each frequency unit from year to year. The plot's color scale set by the chronological order of the lines (i.e., from dark color for early years and bright colors for the latest years).
 
-The combination of the three plots provides the full picture on the series seaosnality. Alternativliy, you can use the `ts_heatmap` to get a time series heatmap represenative of the series:
+* Plot each frequency unit over time, and in the case of monthly series, each line represents a month of consumption over time. This allows us to observe if the seasonal pattern remains the same over time.
+
+* Last but not least, is box-plot representative of each frequency unit, which allows us to compare the distribution of each frequency unit.  
+
+The main observations from this set of plots are:
+
+* The structure of the seasonal pattern remain the same over the years - high consumption through the winter months, low through the spring and fall and small spike during the summertime
+* The distribution of the consumption during the wintertime is wider than the ones throughout the rest of the year. This may be related to the strength of the winter, as most of the heating systems in the US consume gas.
+* The series is growing from year to year
+
+To get a more clear view of the seasonal pattern of the series, you may want to remove the series growth (or detrend) and replot it:
+
+```{r}
+ ts_seasonal(USgas - decompose(USgas)$trend, type = "all")
+```
+
+Alternatively, you can use `ts_heatmap` or the `ts_surface` function to view and explore the seasonal pattern of the series:
 
 ```{r}
 ts_heatmap(USgas)
@@ -97,46 +119,75 @@ ts_surface(USgas)
 
 ### Correlation analysis
 
-The next step is to identify the level of correlation between the series and it's lags, using the `ts_acf` function, which is nothing but an interactive version of the `acf` function:
+The next step is to identify the level of correlation between the series and it's lags, using the `ts_acf` function (an interactive interface for the `acf` function):
 ```{r}
 ts_acf(USgas, lag.max = 36)
 ```
 
-As expected you can notice that the series is highely correlated with it's seasonal lags. A more intuative way to review identify a deoandency between the series and its lags is with the `ts_lags` function, which provides plots of the series against its lags:
+As expected you can notice that the series has a high correlation with its seasonal lags. A more intuitive way to review identify the relationship between the series and its lags is with the `ts_lags` function, which provides plots of the series against its lags:
 
 ```{r}
 ts_lags(USgas)
 ```
 
-As observed before with the `ts_acf` function, you can notice that the seasonal lag (or lag 12) of the series has a strong linear relationship with the series. In a semilar way we can zoom in on the seasonal lags of the series using the `lags` argument:
+As observed before with the `ts_acf` function, you can notice that the seasonal lag (or lag 12) of the series has a strong linear relationship with the series. Similarly, we can zoom in on the seasonal lags of the series using the `lags` argument:
 
 ```{r}
 ts_lags(USgas, lags = c(12, 24, 36, 48))
 ```
 
+### Exporatory analysis summary
+
+Here are the key insights we learned from the exploratory analysis process:
+
+* The series has a strong seasonal pattern, no indication for multi-seasonality 
+* The series trend has a structural break around 2010 and a non-linear growth
+* The series has a strong correlation with its seasonal lags
+
+
+
 ## Forecasting the series
 
-Using the information we learned from the seasonal and correlation analysis, we will conduct "horse race" between several models and select the one that performe best on the testing set, by using two training approaches:
+Using the information we learned from the exploratory analysis, we will conduct "horse race" between several models and select the one that performs best on the testing sets, by using two training approaches:
 
 
-* Traditional approach - by splitting the series into training and testing (sample out) partitions. Train each model on the training set and evluate its perfromance on the testing set. We will use the following four models - `auto.arima`, `ets`, `nnetar` and `tslm` from the **forecast** package
+* Traditional approach - by splitting the series into training and testing (sample out) partitions. Train each model on the training set and evaluate its performance on the testing set. We will use the following three models - `auto.arima`, `ets`, and `tslm` from the **forecast** package
 
-* Backtesting - by using expending window to train and test each model on multiple training and testing sets. We will utilize the `ts_backtesting` function to train multiple models from the **forecast**, **forecastHybrid**, and **bsts** packages.
+* Backtesting - by using an expanding window to train and test each model on multiple training and testing sets. We will utilize the `ts_backtesting` function to train multiple models from the **forecast**, **forecastHybrid**, and **bsts** packages.
+
+
+To handle the stuctual break of the series, we will use a binary flag with a value of 0 for any observations before 2010, and 1 afterward:
+
+```{r}
+USgas_df <- ts_to_prophet(USgas) # converting the series to df format
+
+head(USgas_df)
+
+library(lubridate)
+USgas_df$flag <- ifelse(year(USgas_df$ds) >= 2010, 1, 0)
+```
+
 
 ### Traditional Approach
 
 ```{r}
 # Set the sample out and forecast horizon
-h1 <- 12 # sample out lenght
+h1 <- 12 # the length of the testing partition
 h2 <- 60 # forecast horizon
 
+# Splitting the time series object to training and testing partitions
 USgas_split <- ts_split(USgas, sample.out = h1)
 train <- USgas_split$train
 test <- USgas_split$test
 
 ts_info(train)
 ts_info(test)
+
+# Splitting the data.frame object to training and testing partitions
+train_df <- USgas_df[1:(nrow(USgas_df) - h1), ]
+test_df <- USgas_df[(nrow(USgas_df) - h1 + 1):nrow(USgas_df), ]
 ```
+
 
 ```{r}
 set.seed(1234)
