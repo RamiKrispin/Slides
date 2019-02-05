@@ -1,0 +1,179 @@
+---
+title: "Time Series Analysis and Forecasting with the TSstudio Package"
+author: "Rami Krispin (@Rami_Krispin)"
+date: "`r format(Sys.Date(), '%b %d, %Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+setwd("/Users/rami/packages/Slides/East Bay R Users Group Feb 2019/")
+```
+
+## Intro
+The **TSstudio** provides a set of tools for time series analysis and forecasting application. The following document demonstrates the usage of the package to forecast the monthly consumption of natural gas in the US in the next 5 years (or 60 months)
+
+## Installation
+
+Install from [CRAN](https://cran.r-project.org/web/packages/TSstudio/index.html):
+
+```{r eval = FALSE, tidy = FALSE}
+install.packages("TSstudio")
+```
+
+Or from [Github](https://github.com/RamiKrispin/TSstudio):
+
+```{r eval=FALSE, tidy=FALSE}
+devtools::install_github("RamiKrispin/TSstudio")
+```
+
+As for December 2018, the most updated version is 0.1.3
+
+```{r}
+library(TSstudio)
+```
+
+## Data
+
+The `USgas` dataset, one of the package datasets, represents the monthly consumption (in Billion Cubic Feet) of natural gas in the US since January 2000 [1]:
+
+```{r}
+# Load the series
+data("USgas")
+
+# Get the series info
+ts_info(USgas)
+
+# Plot the series
+ts_plot(USgas,
+        title = "US Monthly Natural Gas Consumption",
+        Ytitle = "Billion Cubic Feet",
+        Xtitle = "Source: Federal Reserve Bank of St. Louis", 
+        slider = TRUE)
+```
+
+## Exploratory analysis
+
+a
+
+### Decomposing the series
+
+
+```{r}
+ts_decompose(USgas)
+```
+
+### Seasonal analysis
+
+You can note from the plot above that the series has strong seasonality and fairly stable trend (or growth). We will use the `ts_seasonal` and the `ts_heatmap` the explore further the seasonality and trend of the series:
+
+```{r}
+ts_seasonal(USgas, type = "all")
+```
+
+The `ts_seasonal` function provides three different views of the seasonality of the series (when the `type` argument is equal to `"all"`):
+
+- The upper plot splits and alinged the series by the cycle units of the series, which in this case the cycle length of the series is one year and the cycle units are the months of the year (or the series frequency). You can not from that plot that:
+    + The consumption has high depandency to the month of the year (e.g., high consumption during the winter and low throughout the summer)
+    + The color scale of the plot, which gradualy change from red for early years to blue for most recent years. Indicates that there is a gradual growth in the consumption from year to year
+- The middle plot represents the change from year to year of each frequency units. Here we can notice that, in most of the years, the order of the consumption magnitute remains the same (e.g., in most of the years January has the highest consumption and May and September the lowest)
+- The last plot, provides a good overview of the consumption variation by frequency units (or month of the year). You can notice that the variation of the consumption during the summer time is lower (or less seneative), as opposed to the ones throughout the winter months
+
+The combination of the three plots provides the full picture on the series seaosnality. Alternativliy, you can use the `ts_heatmap` to get a time series heatmap represenative of the series:
+
+```{r}
+ts_heatmap(USgas)
+```
+
+```{r}
+ts_surface(USgas)
+```
+
+### Correlation analysis
+
+The next step is to identify the level of correlation between the series and it's lags, using the `ts_acf` function, which is nothing but an interactive version of the `acf` function:
+```{r}
+ts_acf(USgas, lag.max = 36)
+```
+
+As expected you can notice that the series is highely correlated with it's seasonal lags. A more intuative way to review identify a deoandency between the series and its lags is with the `ts_lags` function, which provides plots of the series against its lags:
+
+```{r}
+ts_lags(USgas)
+```
+
+As observed before with the `ts_acf` function, you can notice that the seasonal lag (or lag 12) of the series has a strong linear relationship with the series. In a semilar way we can zoom in on the seasonal lags of the series using the `lags` argument:
+
+```{r}
+ts_lags(USgas, lags = c(12, 24, 36, 48))
+```
+
+## Forecasting the series
+
+Using the information we learned from the seasonal and correlation analysis, we will conduct "horse race" between several models and select the one that performe best on the testing set, by using two training approaches:
+
+
+* Traditional approach - by splitting the series into training and testing (sample out) partitions. Train each model on the training set and evluate its perfromance on the testing set. We will use the following four models - `auto.arima`, `ets`, `nnetar` and `tslm` from the **forecast** package
+
+* Backtesting - by using expending window to train and test each model on multiple training and testing sets. We will utilize the `ts_backtesting` function to train multiple models from the **forecast**, **forecastHybrid**, and **bsts** packages.
+
+### Traditional Approach
+
+```{r}
+# Set the sample out and forecast horizon
+h1 <- 12 # sample out lenght
+h2 <- 60 # forecast horizon
+
+USgas_split <- ts_split(USgas, sample.out = h1)
+train <- USgas_split$train
+test <- USgas_split$test
+
+ts_info(train)
+ts_info(test)
+```
+
+```{r}
+set.seed(1234)
+
+library(forecast)
+
+# auto.arima
+md1 <- auto.arima(train, 
+                  stepwise = FALSE, 
+                  approximation = FALSE,
+                  D = 1)
+fc1 <- forecast(md1, h = h1)
+accuracy(fc1, test)
+# ETS
+md2 <- ets(train, opt.crit = "mse")
+fc2 <- forecast(md2, h = h1)
+accuracy(fc2, test)
+
+# Neural network time series forecasts
+md3 <- nnetar(train, 
+              P = 2, # using 2 seasonal lags
+              p = 1, # and 1 non-seasonal lags
+              repeats = 100)
+fc3 <- forecast(md3, h = h1)
+accuracy(fc3, test)
+
+# Time series linear regression
+md4 <- tslm(train ~ season + trend)
+fc4 <- forecast(md4, h = h1)
+accuracy(fc4, test)
+```
+
+We will utlize the `test_forecast` function to visualize the goodness of fit of each model on both the training and testing partitions:
+
+```{r}
+test_forecast(forecast.obj = fc1, actual = USgas, test = test)
+test_forecast(forecast.obj = fc2, actual = USgas, test = test)
+test_forecast(forecast.obj = fc3, actual = USgas, test = test)
+test_forecast(forecast.obj = fc4, actual = USgas, test = test)
+```
