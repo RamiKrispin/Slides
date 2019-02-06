@@ -1,5 +1,6 @@
 ---
 title: "Time Series Analysis and Forecasting with the TSstudio Package"
+subtitle: "The East Bay Area R Language Enthusiasts Group"
 author: "Rami Krispin (@Rami_Krispin)"
 date: "`r format(Sys.Date(), '%b %d, %Y')`"
 output: 
@@ -17,7 +18,7 @@ setwd("/Users/rami/packages/Slides/East Bay R Users Group Feb 2019/")
 ```
 
 ## Intro
-The **TSstudio** provides a set of tools for time series analysis and forecasting applications, using (mainly) the **forecast** package models and the **plotly** package data visualization engine. The following document demonstrates the usage of the package to forecast the monthly consumption of natural gas in the US in the next 5 years (or 60 months)
+The **TSstudio** provides a set of tools for time series analysis and forecasting applications, using (mainly) models from the **forecast** package and visualization tools based on the **plotly** package. The following tutorial demonstrates the usage of the package to forecast the monthly consumption of natural gas in the US in the next 5 years (or 60 months)
 
 ## Installation
 
@@ -299,7 +300,8 @@ We can see that the ACF plot indicated that the residuals are correlated, which 
 # Time series linear regression
 md_final <- tslm(USgas ~ season + trend + I(trend ^ 2))
 fc_final <- forecast(md_final, h = h2)
-plot_forecast(fc_final)
+plot_forecast(fc_final) %>% 
+  layout(legend = list(x = 0.1, y = 0.95))
 ```
 
 

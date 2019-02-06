@@ -1,0 +1,338 @@
+---
+title: "Time Series Analysis and Forecasting with the TSstudio Package"
+subtitle: "The East Bay Area R Language Enthusiasts Group"
+author: "Rami Krispin (@Rami_Krispin)"
+date: "`r format(Sys.Date(), '%b %d, %Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+setwd("/Users/rami/packages/Slides/East Bay R Users Group Feb 2019/")
+```
+
+## Intro
+The **TSstudio** provides a set of tools for time series analysis and forecasting applications, using (mainly) models from the **forecast** package and visualization tools based on the **plotly** package. The following tutorial demonstrates the usage of the package to forecast the monthly consumption of natural gas in the US in the next 5 years (or 60 months)
+
+## Installation
+
+Install from [CRAN](https://cran.r-project.org/web/packages/TSstudio/index.html):
+
+```{r eval = FALSE, tidy = FALSE}
+install.packages("TSstudio")
+```
+
+Or from [Github](https://github.com/RamiKrispin/TSstudio):
+
+```{r eval=FALSE, tidy=FALSE}
+devtools::install_github("RamiKrispin/TSstudio")
+```
+
+As for December 2018, the most updated version is 0.1.3
+
+```{r}
+library(TSstudio)
+```
+
+## Data
+
+The `USgas` dataset, one of the package datasets, represents the monthly consumption (in Billion Cubic Feet) of natural gas in the US since January 2000 [1]:
+
+```{r fig.height=5, fig.width=8}
+# Load the series
+data("USgas")
+
+# Get the series info
+ts_info(USgas)
+
+# Plot the series
+ts_plot(USgas,
+        title = "US Monthly Natural Gas Consumption",
+        Ytitle = "Billion Cubic Feet",
+        Xtitle = "Source: Federal Reserve Bank of St. Louis", 
+        slider = TRUE)
+```
+
+## Exploratory analysis
+
+The goal of the exploratory analysis is to identify the key characteristics of the series with the use of descriptive analysis methods. Throughout this process we are mainly want to detect:
+
+* Seasonal pattern - single/multiple seasonal pattern (if exists)
+* The trend type - linear/exponential
+* Structural breaks and outliers
+* Any other pattern of the series
+
+Those insights provide us with a better understanding of the past and can be utilized to forecast the future. 
+
+### Decomposing the series
+
+We will start with decomposing the series into its three components - the trend, seasonal and random components. The `ts_decompose` function provides an interactive inference for the `decompose` function form the **stats** package:
+
+```{r fig.height=5, fig.width=8}
+ts_decompose(USgas)
+```
+
+We can observe that the trend of the series is fairly flat up to 2010 and afterward start to increase. Also, it seems from the trend plot that it is not linear. 
+
+### Seasonal analysis
+
+You can note from both the series and decompose plots that the series has a strong seasonal pattern along with a non-linear trend. We will use the `ts_seasonal`, `ts_heatmap` and `ts_surface` functions to explore the seasonal pattern of the series:
+
+```{r fig.height=5, fig.width=8}
+ts_seasonal(USgas, type = "all")
+```
+
+The `ts_seasonal` function provides three different views of the seasonality of the series (when the type argument is equal to  `all`):
+
+* Split and plot the series by the full frequency cycle of the series, which in the case of monthly series is a full year. This view allows you to observe and compare the variation of each frequency unit from year to year. The plot's color scale set by the chronological order of the lines (i.e., from dark color for early years and bright colors for the latest years).
+
+* Plot each frequency unit over time, and in the case of monthly series, each line represents a month of consumption over time. This allows us to observe if the seasonal pattern remains the same over time.
+
+* Last but not least, is box-plot representative of each frequency unit, which allows us to compare the distribution of each frequency unit.  
+
+The main observations from this set of plots are:
+
+* The structure of the seasonal pattern remain the same over the years - high consumption through the winter months, low through the spring and fall and small spike during the summertime
+* The distribution of the consumption during the wintertime is wider than the ones throughout the rest of the year. This may be related to the strength of the winter, as most of the heating systems in the US consume gas.
+* The series is growing from year to year
+
+To get a more clear view of the seasonal pattern of the series, you may want to remove the series growth (or detrend) and replot it:
+
+```{r fig.height=5, fig.width=8}
+ ts_seasonal(USgas - decompose(USgas)$trend, 
+             type = "all", 
+             title = "Seasonal Plot - USgas (Detrend)")
+```
+
+Alternatively, you can use `ts_heatmap` or the `ts_surface` function to view and explore the seasonal pattern of the series:
+
+```{r fig.height=5, fig.width=8}
+ts_heatmap(USgas)
+```
+
+```{r fig.height=5, fig.width=8}
+ts_surface(USgas)
+```
+
+### Correlation analysis
+
+The next step is to identify the level of correlation between the series and it's lags, using the `ts_acf` function (an interactive interface for the `acf` function):
+```{r fig.height=5, fig.width=8}
+ts_acf(USgas, lag.max = 36)
+```
+
+As expected you can notice that the series has a high correlation with its seasonal lags. A more intuitive way to review identify the relationship between the series and its lags is with the `ts_lags` function, which provides plots of the series against its lags:
+
+```{r fig.height=5, fig.width=8}
+ts_lags(USgas)
+```
+
+As observed before with the `ts_acf` function, you can notice that the seasonal lag (or lag 12) of the series has a strong linear relationship with the series. Similarly, we can zoom in on the seasonal lags of the series using the `lags` argument:
+
+```{r fig.height=5, fig.width=8}
+ts_lags(USgas, lags = c(12, 24, 36, 48))
+```
+
+### Exporatory analysis summary
+
+Here are the key insights we learned from the exploratory analysis process:
+
+* The series has a strong seasonal pattern, no indication for multi-seasonality 
+* The series trend has a structural break around 2010 and a non-linear growth
+* The series has a strong correlation with its seasonal lags
+
+
+
+## Forecasting the series
+
+Using the information we learned from the exploratory analysis, we will conduct "horse race" between several models and select the one that performs best on the testing sets, by using two training approaches:
+
+
+* Traditional approach - by splitting the series into training and testing (sample out) partitions. Train each model on the training set and evaluate its performance on the testing set. We will use the following three models - `auto.arima`, `ets`, and `tslm` from the **forecast** package
+
+* Backtesting approach - by using an expanding window to train and test each model on multiple training and testing sets. We will utilize the `ts_backtesting` function to train multiple models from the **forecast**, **forecastHybrid**, and **bsts** packages.
+
+
+To handle the stuctual break of the series, we will use a binary flag with a value of 0 for any observations before 2010, and 1 afterward:
+
+```{r fig.height=5, fig.width=8}
+USgas_df <- ts_to_prophet(USgas) # converting the series to df format
+
+head(USgas_df)
+
+library(lubridate)
+USgas_df$flag <- ifelse(year(USgas_df$ds) >= 2010, 1, 0)
+```
+
+
+### Traditional Approach
+
+
+We will use the following three forecasting approaches:
+
+*	ARIMA – autoregressive moving average model using the `auto.arima` function
+*	ETS (Error, Trend and Seasonal) model - or exponential smoothing state space model with the `ets` function
+*	TSLM (Time Series Linear Model) – forecasting with linear regression model using the `tslm` function
+
+
+When running a “horse racing” between forecasting models, it is recommended diversify your modeling approach. The performance of the models may change according to the data structure and by the tuning parameters.  
+
+We will start by spliting the series to training and testing partitions:
+
+
+```{r}
+# Set the sample out and forecast horizon
+h1 <- 12 # the length of the testing partition
+h2 <- 60 # forecast horizon
+
+# Splitting the time series object to training and testing partitions
+USgas_split <- ts_split(USgas, sample.out = h1)
+train <- USgas_split$train
+test <- USgas_split$test
+
+ts_info(train)
+ts_info(test)
+
+# Splitting the data.frame object to training and testing partitions
+train_df <- USgas_df[1:(nrow(USgas_df) - h1), ]
+test_df <- USgas_df[(nrow(USgas_df) - h1 + 1):nrow(USgas_df), ]
+```
+
+
+
+#### Model 1 - ARIMA
+
+```{r fig.height=5, fig.width=8}
+set.seed(1234)
+
+library(forecast)
+library(plotly)
+
+# auto.arima
+md1 <- auto.arima(train, 
+                  stepwise = FALSE, 
+                  approximation = FALSE,
+                  D = 1)
+fc1 <- forecast(md1, h = h1)
+accuracy(fc1, test)
+
+test_forecast(forecast.obj = fc1, actual = USgas, test = test) %>% 
+  layout(legend = list(x = 0.1, y = 0.95))
+```
+
+
+It seems like the ARIMA model capture well the change in the trend but fail to capture the seasonal peaks. In addition, the error rate on the testing set is more than twice than the one on the training set. This may indication for overfitting.
+
+#### Model 2 - ETS
+
+
+```{r fig.height=5, fig.width=8}
+# ETS
+md2 <- ets(train, opt.crit = "mse")
+fc2 <- forecast(md2, h = h1)
+accuracy(fc2, test)
+test_forecast(forecast.obj = fc2, actual = USgas, test = test) %>% 
+  layout(legend = list(x = 0.1, y = 0.95))
+
+
+```
+
+
+The ETS do a better job on capturing the both the trend and the peaks with respect to the ARIMA model above. With an overall error of 6.5% testing set and 3.5% on the training set. 
+
+#### Model 3 - TSLM
+
+```{r fig.height=5, fig.width=8}
+# Time series linear regression
+md3 <- tslm(train ~ season + trend)
+fc3 <- forecast(md3, h = h1)
+accuracy(fc3, test)
+
+test_forecast(forecast.obj = fc3, actual = USgas, test = test) %>% 
+  layout(legend = list(x = 0.1, y = 0.95))
+```
+
+Not surprisingly, the linear approach seems vary linear and therefore fail to capture the peaks and the trend structure. Far behind from the ARIMA and the ETS, the TSLM score an error rate of 9.2% on the testing set.
+
+
+ We can try to impose the structural break by adding the flag variable we prepared before:
+
+
+```{r fig.height=5, fig.width=8}
+# Time series linear regression
+md3a <- tslm(train ~ season + trend + flag, data = train_df)
+fc3a <- forecast(md3a, h = h1, newdata = test_df)
+accuracy(fc3a, test)
+
+test_forecast(forecast.obj = fc3a, actual = USgas, test = test) %>% 
+  layout(legend = list(x = 0.1, y = 0.95))
+```
+
+That even worse! Let’s try to use polynomial regression by adding the second square of the trend:
+
+```{r fig.height=5, fig.width=8}
+# Time series linear regression
+md3b <- tslm(train ~ season + trend + I(trend ^ 2))
+fc3b <- forecast(md3b, h = h1)
+accuracy(fc3b, test)
+
+test_forecast(forecast.obj = fc3b, actual = USgas, test = test)  %>% 
+  layout(legend = list(x = 0.1, y = 0.95))
+```
+
+
+That's look much better! Although we still of on the peaks, this model is doing a better job on capturing the overall trend of the series. With an error rate of 4.5% on the testing set and 3.7% on the training set. If the model selection criteria are MAPE or RMSE, we should select this model. Before we retrain the model, let’s review this model residuals: 
+
+
+```{r fig.height=5, fig.width=8}
+check_res(md3b)
+```
+
+We can see that the ACF plot indicated that the residuals are correlated, which is an indication that model missed or not capturing well some of the patterns of the series. In this case, you can either try to add additional features to the model such as different degree of polynomial or other regressors (such as weather indicators, energy prices, etc.). For simplicity reasons, based on the error performance, we will move forward with this model and forecast the next 5 years:
+
+```{r fig.height=5, fig.width=8}
+# Time series linear regression
+md_final <- tslm(USgas ~ season + trend + I(trend ^ 2))
+fc_final <- forecast(md_final, h = h2)
+plot_forecast(fc_final) %>% 
+  layout(legend = list(x = 0.1, y = 0.95))
+```
+
+
+### Backtesting approach
+
+We will use the `ts_backtesting` to train and test multiple models (`auto.arima`, `ets`, `HoltWinters`, `nnetar`, `tbats`, from the **forecast** package, `hybridModel` from the **forecastHybrid** package and `bsts` from the **bsts** package) over six periods of time (`periods = 6`). Likewise as we did in the traditional approach above, we will set the testing partition to 12 months (`h = h1`) and the forecast horizon to 60 months (`h = h2`)
+
+```{r}
+md5 <- ts_backtesting(ts.obj = USgas,
+                      periods = 6, 
+                      error = "MAPE",
+                      window_size = h1,
+                      h = h2,
+                      a.arg = list(stepwise = FALSE, 
+                                   approximation = FALSE,
+                                   D = 1),
+                      e.arg = list(opt.crit = "mse"),
+                      n.arg = list(P = 2, 
+                                   p =1,
+                                   repeats = 100),
+                      h.arg = list(errorMethod = "RMSE",
+                                   verbos = FALSE))
+
+
+md5$summary_plot
+```
+
+The main advantage the backtesting approach, over the traditional approach, is that it provides an overview of the performance of each model overtime. This allow you to identify, in additional to accuracy, the stability of the model's performance overtime. Looking at the summary plot above, you can notice that:
+
+* The `nnetar` model is the most stable model, as the range of its RMSE is fairly small.
+* Yet, on average, the `auto.arima` model achived the lowest RMSE and MAPE on the testing partitions (since we defined the model selection critirion as RMSE, the function select this forecasting approach)
+* You may also consider the `bsts` or the `ets` models, as their error consitenly dropping overtime
+
+[1] U.S. Bureau of Transportation Statistics, Natural Gas Consumption [NATURALGAS], retrieved from FRED, Federal Reserve Bank of St. Louis; https://fred.stlouisfed.org/series/NATURALGAS, January 7, 2018.

@@ -161,3 +161,6 @@ Backtesting with both expending and sliding windows and parallel option
 plot_backtesting(fc,by = "MAPE", type = "all", palette = "viridis", top = NULL)
 ```
 
+## Questions?
+
+## Thank you!
