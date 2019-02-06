@@ -80,6 +80,7 @@ knitr::include_graphics("TSstudio Structure.png")
 
 ## Demo
 
+[Link to the demo](http://rpubs.com/ramkrisp/TSstudioDemo)
 
 ## Work on progress - next release
 
