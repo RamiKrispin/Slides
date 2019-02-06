@@ -82,7 +82,7 @@ knitr::include_graphics("TSstudio Structure.png")
 
 [Link to the demo](http://rpubs.com/ramkrisp/TSstudioDemo)
 
-## Work on progress - next release
+## Work on progress - version 0.1.4
 
 Forecast simulation
 
@@ -95,7 +95,7 @@ md <- auto.arima(USgas)
 fc_sim <- forecast_sim(md, h = 60, n = 200)
 ```
 
-## Work on progress - next release
+## Work on progress - version 0.1.4
 
 Forecast simulation
 
@@ -103,7 +103,7 @@ Forecast simulation
 fc_sim$plot
 ```
 
-## Work on progress - next release
+## Work on progress - version 0.1.4
 
 HoltWinters tuning parameters with grid search
 
@@ -122,7 +122,7 @@ hw_grid_shallow <- ts_grid(ts.obj = USgas,
 ```
 
 
-## Work on progress - next release
+## Work on progress - version 0.1.4
 
 HoltWinters tuning parameters with grid search
 
@@ -131,7 +131,7 @@ plot_grid(hw_grid_shallow, type = "parcoords")
 ```
 
 
-## Work on progress - next release
+## Work on progress - version 0.1.4
 
 HoltWinters tuning parameters with grid search
 
@@ -139,7 +139,7 @@ HoltWinters tuning parameters with grid search
 plot_grid(hw_grid_shallow, type = "3D", top = 200)
 ```
 
-## Work on progress - next release
+## Work on progress - version 0.1.4
 
 Backtesting with both expending and sliding windows and parallel option
 
@@ -154,7 +154,7 @@ fc <- ts_test(ts.obj = USgas,
              top = 6)
 ```
 
-## Work on progress - next release
+## Work on progress - version 0.1.4
 
 Backtesting with both expending and sliding windows and parallel option
 
